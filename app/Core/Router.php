@@ -12,6 +12,8 @@ final class Router
     /** @var list<array{method: string, pattern: string, handler: mixed}> */
     private array $routes = [];
 
+    private mixed $fallback = null;
+
     public function get(string $pattern, mixed $handler): void
     {
         $this->add('GET', $pattern, $handler);
@@ -20,6 +22,11 @@ final class Router
     public function post(string $pattern, mixed $handler): void
     {
         $this->add('POST', $pattern, $handler);
+    }
+
+    public function fallback(mixed $handler): void
+    {
+        $this->fallback = $handler;
     }
 
     public function add(string $method, string $pattern, mixed $handler): void
@@ -44,6 +51,10 @@ final class Router
             }
 
             return $this->invoke($route['handler'], $request, $params);
+        }
+
+        if ($this->fallback !== null && $request->method() === 'GET') {
+            return $this->invoke($this->fallback, $request, []);
         }
 
         return (new ErrorController())->notFound();

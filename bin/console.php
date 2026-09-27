@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Core\Database;
 use App\Core\Migrator;
 use App\Core\Seeder;
+use App\Services\AuthService;
 
 require dirname(__DIR__) . '/includes/bootstrap.php';
 
@@ -15,6 +16,7 @@ try {
         'migrate' => migrate(),
         'seed' => seed(),
         'status' => status(),
+        'admin:create' => createAdmin($argv),
         default => help(),
     };
 } catch (Throwable $exception) {
@@ -53,7 +55,21 @@ function status(): void
     fwrite(STDOUT, "Categories: {$categories}\n");
 }
 
+function createAdmin(array $argv): void
+{
+    $name = $argv[2] ?? '';
+    $email = $argv[3] ?? '';
+    $password = $argv[4] ?? '';
+    $role = $argv[5] ?? 'super_admin';
+    if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($password) < 12 || !in_array($role, ['super_admin', 'admin', 'moderator', 'editor'], true)) {
+        fwrite(STDERR, "Usage: php bin/console.php admin:create \"Name\" email password role\n");
+        exit(1);
+    }
+    AuthService::createAdmin(Database::connection(), $name, $email, $password, $role);
+    fwrite(STDOUT, "Admin created.\n");
+}
+
 function help(): void
 {
-    fwrite(STDOUT, "Usage: php bin/console.php [migrate|seed|status]\n");
+    fwrite(STDOUT, "Usage: php bin/console.php [migrate|seed|status|admin:create]\n");
 }

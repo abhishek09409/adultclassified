@@ -24,8 +24,28 @@ php -S 127.0.0.1:8080 -t . index.php
 
 `/` is the foundation page. `/health` reports database connectivity and seed counts. It does not return credentials or personal data.
 
-## Phase 1 checks
+## Run the directory
+
+```bash
+php bin/console.php migrate
+php bin/console.php seed
+php bin/console.php admin:create "Site Admin" admin@example.com 'a-long-password' super_admin
+php -S 127.0.0.1:8080 -t . index.php
+```
+
+Daily automation, capped at five published listings:
+
+```bash
+0 9 * * * /usr/bin/php /path/to/project/cron/daily_ads.php
+```
+
+The public site asks visitors to confirm they are 21 or older. It does not collect a date of birth for that check.
+
+## Checks
 
 ```bash
 php tests/Phase1Test.php
+php tests/DirectoryTest.php
 ```
+
+Policy pages are templates. See `docs/COMPLIANCE_REVIEW.md` before any launch. A completed checklist is not a legal sign-off.

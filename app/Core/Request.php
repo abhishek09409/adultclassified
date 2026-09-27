@@ -8,23 +8,35 @@ final class Request
 {
     /**
      * @param array<string, mixed> $query
+     * @param array<string, mixed> $post
      * @param array<string, mixed> $server
+     * @param array<string, mixed> $files
      */
     public function __construct(
         private readonly string $method,
         private readonly string $path,
         private readonly array $query,
-        private readonly array $server
+        private readonly array $server,
+        private readonly array $post = [],
+        private readonly array $files = []
     ) {
     }
 
     /**
      * @param array<string, mixed> $query
      * @param array<string, mixed> $server
+     * @param array<string, mixed> $post
+     * @param array<string, mixed> $files
      */
-    public static function capture(string $method, string $uri, array $query = [], array $server = []): self
-    {
-        return new self(strtoupper($method), self::normalizePath($uri), $query, $server);
+    public static function capture(
+        string $method,
+        string $uri,
+        array $query = [],
+        array $server = [],
+        array $post = [],
+        array $files = []
+    ): self {
+        return new self(strtoupper($method), self::normalizePath($uri), $query, $server, $post, $files);
     }
 
     public static function fromGlobals(): self
@@ -32,7 +44,7 @@ final class Request
         $uri = (string) ($_SERVER['REQUEST_URI'] ?? '/');
         $method = (string) ($_SERVER['REQUEST_METHOD'] ?? 'GET');
 
-        return self::capture($method, $uri, $_GET, $_SERVER);
+        return self::capture($method, $uri, $_GET, $_SERVER, $_POST, $_FILES);
     }
 
     public function method(): string
@@ -47,12 +59,57 @@ final class Request
 
     public function query(string $key, ?string $default = null): ?string
     {
-        $value = $this->query[$key] ?? $default;
-        if ($value === null) {
+        return $this->scalar($this->query[$key] ?? null, $default);
+    }
+
+    public function input(string $key, ?string $default = null): ?string
+    {
+        $value = $this->post[$key] ?? $this->query[$key] ?? null;
+
+        return $this->scalar($value, $default);
+    }
+
+    public function integer(string $key): ?int
+    {
+        $value = $this->input($key);
+        if ($value === null || !preg_match('/^\d+$/', $value)) {
             return null;
         }
 
-        return is_scalar($value) ? (string) $value : $default;
+        return (int) $value;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function file(string $key): ?array
+    {
+        $file = $this->files[$key] ?? null;
+
+        return is_array($file) ? $file : null;
+    }
+
+    public function ip(): string
+    {
+        $ip = $this->server['REMOTE_ADDR'] ?? '';
+
+        return is_string($ip) ? $ip : '';
+    }
+
+    public function isSecure(): bool
+    {
+        $https = $this->server['HTTPS'] ?? '';
+
+        return $https === 'on' || $https === '1';
+    }
+
+    private function scalar(mixed $value, ?string $default): ?string
+    {
+        if ($value === null) {
+            return $default;
+        }
+
+        return is_scalar($value) ? trim((string) $value) : $default;
     }
 
     public static function normalizePath(string $uri): string
