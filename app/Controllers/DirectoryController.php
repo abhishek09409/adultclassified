@@ -131,6 +131,17 @@ final class DirectoryController
         if ($request->query('sort') === 'featured') {
             $filters['sort'] = 'featured';
         }
+        $places = [];
+        if ($kind === 'state' && isset($filters['state_id'])) {
+            foreach ($this->locations->citiesByState((int) $filters['state_id']) as $city) {
+                $places[] = ['name' => (string) $city['name'], 'url' => $path . '/' . $city['slug']];
+            }
+        }
+        if ($kind === 'city' && isset($filters['city_id'])) {
+            foreach ($this->locations->localitiesByCity((int) $filters['city_id']) as $locality) {
+                $places[] = ['name' => (string) $locality['name'], 'url' => $path . '/' . $locality['slug']];
+            }
+        }
         $result = $this->listings->search($filters, true, $page, 12);
         $pages = max(1, (int) ceil($result['total'] / 12));
         $robots = $result['total'] > 0 || in_array($kind, ['state', 'category', 'city', 'locality'], true) ? 'index,follow' : 'noindex,follow';
@@ -151,6 +162,8 @@ final class DirectoryController
             'states' => $this->locations->states(),
             'categories' => $this->locations->categories(),
             'sort' => (string) ($filters['sort'] ?? 'newest'),
+            'places' => $places,
+            'placeLabel' => $kind === 'city' ? 'Areas' : 'Cities',
         ], 'layouts/public'));
     }
 

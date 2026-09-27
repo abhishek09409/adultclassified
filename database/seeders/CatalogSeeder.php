@@ -51,10 +51,11 @@ final class CatalogSeeder
         foreach ($pdo->query('SELECT id, slug FROM categories')->fetchAll() as $row) {
             $categories[(string) $row['slug']] = (int) $row['id'];
         }
+        $pdo->exec("UPDATE listing_variations SET status = 'inactive'");
         $insert = $pdo->prepare(
             'INSERT INTO listing_variations (variation_type, category_id, content, fingerprint, status)
-             VALUES (:variation_type, :category_id, :content, :fingerprint, :status)
-             ON DUPLICATE KEY UPDATE content = content'
+             VALUES (:variation_type, :category_id, :content, :fingerprint, :status) AS new_row
+             ON DUPLICATE KEY UPDATE content = new_row.content, status = new_row.status'
         );
         foreach (ContentLibrary::variations() as $item) {
             $reason = $validator->failureReason((string) $item['content'], 21);

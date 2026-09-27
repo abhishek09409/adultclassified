@@ -6,6 +6,7 @@ use App\Core\Database;
 use App\Core\Migrator;
 use App\Core\Seeder;
 use App\Services\AuthService;
+use App\Services\AutomationService;
 
 require dirname(__DIR__) . '/includes/bootstrap.php';
 
@@ -17,6 +18,7 @@ try {
         'seed' => seed(),
         'status' => status(),
         'admin:create' => createAdmin($argv),
+        'ads:demo' => demoAds($argv),
         default => help(),
     };
 } catch (Throwable $exception) {
@@ -69,7 +71,17 @@ function createAdmin(array $argv): void
     fwrite(STDOUT, "Admin created.\n");
 }
 
+function demoAds(array $argv): void
+{
+    $count = isset($argv[2]) ? (int) $argv[2] : 36;
+    $result = (new AutomationService())->publishDemo($count);
+    fwrite($result['ok'] ? STDOUT : STDERR, $result['message'] . PHP_EOL);
+    if (!$result['ok']) {
+        exit(1);
+    }
+}
+
 function help(): void
 {
-    fwrite(STDOUT, "Usage: php bin/console.php [migrate|seed|status|admin:create]\n");
+    fwrite(STDOUT, "Usage: php bin/console.php [migrate|seed|status|admin:create|ads:demo]\n");
 }

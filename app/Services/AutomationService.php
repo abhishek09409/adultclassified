@@ -13,6 +13,8 @@ final class AutomationService
 {
     public const ABSOLUTE_CAP = 5;
 
+    private bool $spreadStates = false;
+
     public function __construct(
         private readonly SettingsService $settings = new SettingsService(),
         private readonly ComplianceValidator $compliance = new ComplianceValidator(),
@@ -21,6 +23,52 @@ final class AutomationService
         private readonly SeoService $seo = new SeoService(),
         private readonly AuditService $audit = new AuditService()
     ) {
+    }
+
+    /**
+     * One-time sample board. These rows count toward today's cap only when published today.
+     *
+     * @return array{ok: bool, message: string, created: int, refreshed: int}
+     */
+    public function publishDemo(int $count = 36): array
+    {
+        $count = max(1, min(60, $count));
+        $pdo = Database::connection();
+        $refreshed = $this->refreshAutomatedCopy();
+        $runId = (int) $pdo->query('SELECT id FROM automation_runs ORDER BY id DESC LIMIT 1')->fetchColumn();
+        if ($runId === 0) {
+            return ['ok' => false, 'message' => 'Run the daily automation once before seeding demo ads.', 'created' => 0, 'refreshed' => $refreshed];
+        }
+
+        $this->spreadStates = true;
+        $created = 0;
+        $usedCityIds = [];
+        $usedAssetIds = [];
+        $lastCategoryId = $this->lastCategoryId();
+        $attempts = 0;
+        while ($created < $count && $attempts < $count * 6) {
+            $attempts++;
+            $published = $this->publishSlot($pdo, $runId, $usedCityIds, $usedAssetIds, $lastCategoryId);
+            if ($published === null) {
+                continue;
+            }
+            $created++;
+            $usedCityIds[] = $published['city_id'];
+            if (count($usedCityIds) > 40) {
+                $usedCityIds = array_slice($usedCityIds, -20);
+            }
+            $usedAssetIds[] = $published['asset_id'];
+            $lastCategoryId = $published['category_id'];
+        }
+        $this->spreadStates = false;
+        $this->featureCitySamples();
+
+        return [
+            'ok' => $created > 0,
+            'message' => 'Refreshed ' . $refreshed . ' listing' . ($refreshed === 1 ? '' : 's') . ' and published ' . $created . ' demo ad' . ($created === 1 ? '' : 's') . '.',
+            'created' => $created,
+            'refreshed' => $refreshed,
+        ];
     }
 
     /**
@@ -240,11 +288,14 @@ final class AutomationService
 
             $asset = $this->settings->bool('IMAGE_ROTATION', true) ? $this->images->nextAsset($usedAssetIds) : $this->images->nextAsset([]);
             if ($asset === null) {
+                $asset = $this->images->nextAsset([]);
+            }
+            if ($asset === null) {
                 $this->log($runId, 'listing_failed', 'image_missing', null, (int) $location['id'], (int) $category['id']);
                 continue;
             }
 
-            $listingId = $this->insertListing($pdo, $location, $category, $title, $description, $runId);
+            $listingId = $this->insertListing($pdo, $location, $category, $title, $description, $filled['availability'] ?? '', $runId);
             $this->images->attachAsset($listingId, $asset);
             $this->log($runId, 'image_selected', 'asset ' . $asset['id'], $listingId, (int) $location['id'], (int) $category['id']);
             $this->recordVariations($pdo, $listingId, $pieces, $combination);
@@ -281,16 +332,16 @@ final class AutomationService
      * @param array<string, mixed> $location
      * @param array<string, mixed> $category
      */
-    private function insertListing(PDO $pdo, array $location, array $category, string $title, string $description, int $runId): int
+    private function insertListing(PDO $pdo, array $location, array $category, string $title, string $description, string $availability, int $runId): int
     {
         $detector = $this->duplicates;
         $statement = $pdo->prepare(
             'INSERT INTO listings (
-                category_id, state_id, city_id, location_id, title, slug, description, age, age_display, status,
+                category_id, state_id, city_id, location_id, title, slug, description, age, age_display, availability_note, status,
                 moderation_status, is_featured, is_verified, is_indexable, is_automated, automation_run_id,
                 content_fingerprint, title_fingerprint, description_fingerprint, published_at
              ) VALUES (
-                :category_id, :state_id, :city_id, :location_id, :title, :slug, :description, 21, :age_display, :status,
+                :category_id, :state_id, :city_id, :location_id, :title, :slug, :description, 21, :age_display, :availability_note, :status,
                 :moderation_status, 0, 0, 1, 1, :automation_run_id,
                 :content_fingerprint, :title_fingerprint, :description_fingerprint, NOW()
              )'
@@ -304,6 +355,7 @@ final class AutomationService
             'slug' => 'pending-' . bin2hex(random_bytes(4)),
             'description' => $description,
             'age_display' => 'minimum',
+            'availability_note' => mb_substr($availability, 0, 180),
             'status' => 'published',
             'moderation_status' => 'approved',
             'automation_run_id' => $runId,
@@ -359,6 +411,9 @@ final class AutomationService
         $rows = Database::connection()->query($sql)->fetchAll();
         if ($rows === []) {
             return null;
+        }
+        if ($this->spreadStates) {
+            return $this->spreadPick($rows, $usedCityIds);
         }
         if ($usedCityIds !== []) {
             $fresh = array_values(array_filter($rows, static fn (array $row): bool => !in_array((int) $row['city_id'], $usedCityIds, true)));
@@ -444,6 +499,152 @@ final class AutomationService
         )->fetchColumn();
 
         return $value === false ? null : (int) $value;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $rows
+     * @param list<int> $usedCityIds
+     * @return array<string, mixed>|null
+     */
+    private function spreadPick(array $rows, array $usedCityIds): ?array
+    {
+        $counts = [];
+        foreach (Database::connection()->query('SELECT state_id, COUNT(*) AS total FROM listings WHERE status = \'published\' GROUP BY state_id') as $row) {
+            $counts[(int) $row['state_id']] = (int) $row['total'];
+        }
+        $fresh = array_values(array_filter(
+            $rows,
+            static fn (array $row): bool => !in_array((int) $row['city_id'], $usedCityIds, true)
+        ));
+        if ($fresh === []) {
+            $fresh = $rows;
+        }
+        $showcase = ['Mumbai', 'New Delhi', 'Bengaluru', 'Ahmedabad', 'Hyderabad', 'Chennai', 'Kolkata', 'Pune', 'Jaipur', 'Lucknow', 'Goa', 'Chandigarh'];
+        $preferred = array_values(array_filter(
+            $fresh,
+            static fn (array $row): bool => in_array((string) $row['city_name'], $showcase, true)
+        ));
+        if ($preferred !== []) {
+            return $preferred[random_int(0, count($preferred) - 1)];
+        }
+        $min = null;
+        $bucket = [];
+        foreach ($fresh as $row) {
+            $total = $counts[(int) $row['state_id']] ?? 0;
+            if ($min === null || $total < $min) {
+                $min = $total;
+                $bucket = [$row];
+                continue;
+            }
+            if ($total === $min) {
+                $bucket[] = $row;
+            }
+        }
+
+        return $bucket[random_int(0, count($bucket) - 1)];
+    }
+
+    private function refreshAutomatedCopy(): int
+    {
+        $pdo = Database::connection();
+        $rows = $pdo->query(
+            "SELECT l.id, l.location_id, l.category_id, l.automation_run_id, loc.name AS locality_name, ci.name AS city_name, s.name AS state_name
+             FROM listings l
+             INNER JOIN locations loc ON loc.id = l.location_id
+             INNER JOIN cities ci ON ci.id = l.city_id
+             INNER JOIN states s ON s.id = l.state_id
+             WHERE l.is_automated = 1 AND l.status = 'published'"
+        )->fetchAll();
+        $updated = 0;
+        foreach ($rows as $row) {
+            $pieces = $this->selectPieces((int) $row['category_id'], random_int(0, 6));
+            if ($pieces === null) {
+                continue;
+            }
+            $category = $pdo->prepare('SELECT id, name, slug FROM categories WHERE id = :id');
+            $category->execute(['id' => (int) $row['category_id']]);
+            $categoryRow = $category->fetch();
+            if (!is_array($categoryRow)) {
+                continue;
+            }
+            $labels = ContentLibrary::categories();
+            $replace = [
+                '{locality}' => (string) $row['locality_name'],
+                '{city}' => (string) $row['city_name'],
+                '{state}' => (string) $row['state_name'],
+                '{label}' => $labels[$categoryRow['slug']] ?? (string) $categoryRow['name'],
+                '{category}' => (string) $categoryRow['name'],
+            ];
+            $filled = [];
+            foreach ($pieces as $piece) {
+                $filled[$piece['type']] = strtr((string) $piece['content'], $replace);
+            }
+            $title = mb_substr($filled['title'], 0, 180);
+            $description = trim($filled['introduction'] . "\n\n" . $filled['location_phrase'] . "\n\n" . $filled['category_info'] . "\n\n" . $filled['description_block'] . "\n\n" . $filled['availability'] . "\n\n" . $filled['closing']);
+            if ($this->compliance->failureReason($title . "\n" . $description, 21) !== null) {
+                continue;
+            }
+            if (mb_strlen($title) < 15 || mb_strlen($description) < 80 || substr_count(mb_strtolower($description), mb_strtolower((string) $row['city_name'])) > 8) {
+                continue;
+            }
+            $pdo->prepare(
+                'UPDATE listings
+                 SET title = :title, description = :description, availability_note = :availability_note,
+                     content_fingerprint = :content_fingerprint, title_fingerprint = :title_fingerprint, description_fingerprint = :description_fingerprint
+                 WHERE id = :id'
+            )->execute([
+                'title' => $title,
+                'description' => $description,
+                'availability_note' => mb_substr($filled['availability'], 0, 180),
+                'content_fingerprint' => $this->duplicates->fingerprint($title, $description),
+                'title_fingerprint' => hash('sha256', $this->duplicates->normalize($title)),
+                'description_fingerprint' => hash('sha256', $this->duplicates->normalize($description)),
+                'id' => (int) $row['id'],
+            ]);
+            $slug = mb_substr(Str::slug($title), 0, 160) . '-' . (int) $row['id'];
+            $pdo->prepare('UPDATE listings SET slug = :slug WHERE id = :id')->execute(['slug' => $slug, 'id' => (int) $row['id']]);
+            $saved = $pdo->prepare(
+                'SELECT l.*, c.name AS category_name, c.slug AS category_slug, s.name AS state_name, s.slug AS state_slug,
+                        ci.name AS city_name, ci.slug AS city_slug, loc.name AS locality_name
+                 FROM listings l
+                 INNER JOIN categories c ON c.id = l.category_id
+                 INNER JOIN states s ON s.id = l.state_id
+                 INNER JOIN cities ci ON ci.id = l.city_id
+                 INNER JOIN locations loc ON loc.id = l.location_id
+                 WHERE l.id = :id'
+            );
+            $saved->execute(['id' => (int) $row['id']]);
+            $listing = $saved->fetch();
+            if (is_array($listing)) {
+                $this->seo->storeListing($listing);
+            }
+            $updated++;
+        }
+
+        return $updated;
+    }
+
+    private function featureCitySamples(): void
+    {
+        Database::connection()->exec(
+            "UPDATE listings l
+             INNER JOIN cities ci ON ci.id = l.city_id
+             SET l.is_featured = 1
+             WHERE l.status = 'published'
+               AND l.is_verified = 0
+               AND ci.name IN ('Mumbai', 'New Delhi', 'Bengaluru', 'Ahmedabad', 'Hyderabad', 'Chennai', 'Kolkata', 'Pune', 'Jaipur', 'Lucknow')
+               AND l.id IN (
+                    SELECT id FROM (
+                        SELECT l2.id
+                        FROM listings l2
+                        INNER JOIN cities ci2 ON ci2.id = l2.city_id
+                        WHERE l2.status = 'published' AND l2.is_verified = 0
+                          AND ci2.name IN ('Mumbai', 'New Delhi', 'Bengaluru', 'Ahmedabad', 'Hyderabad', 'Chennai', 'Kolkata', 'Pune', 'Jaipur', 'Lucknow')
+                        ORDER BY l2.id DESC
+                        LIMIT 8
+                    ) featured_ids
+               )"
+        );
     }
 
     private function log(int $runId, string $action, string $message, ?int $listingId, ?int $locationId, ?int $categoryId): void

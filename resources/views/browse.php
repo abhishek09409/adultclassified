@@ -31,6 +31,14 @@ declare(strict_types=1);
         <div class="col-lg-9">
             <h1><?= e($heading) ?></h1>
             <p><?= e($intro) ?></p>
+            <?php if (!empty($places)): ?>
+                <h2 class="h5"><?= e((string) ($placeLabel ?? 'Places')) ?></h2>
+                <div class="state-grid mb-4">
+                    <?php foreach ($places as $place): ?>
+                        <a class="place-link" href="<?= e((string) $place['url']) ?>"><?= e((string) $place['name']) ?></a>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
             <p class="meta"><?= e((string) $total) ?> published</p>
             <div class="listing-grid">
                 <?php foreach ($listings as $listing): \App\Core\View::partial('components/listing-card', ['listing' => $listing]); endforeach; ?>

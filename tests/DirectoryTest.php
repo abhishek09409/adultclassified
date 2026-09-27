@@ -34,7 +34,7 @@ foreach ($rows as $row) {
         $bad++;
     }
 }
-check(count($rows) === 5 && $bad === 0, 'five automated listings stay unverified and compliant');
+check(count($rows) >= 5 && $bad === 0, 'automated listings stay unverified and compliant');
 
 $search = new ListingRepository();
 $result = $search->search(['q' => "' OR 1=1 --"], true, 1, 12);
