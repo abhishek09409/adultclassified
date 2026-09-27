@@ -23,6 +23,16 @@ final class Seeder
             (new StateSeeder())->run($this->pdo);
             (new CategorySeeder())->run($this->pdo);
             (new LocationSeeder())->run($this->pdo);
+            $this->pdo->commit();
+        } catch (\Throwable $exception) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $exception;
+        }
+
+        $this->pdo->beginTransaction();
+        try {
             (new CatalogSeeder())->run($this->pdo);
             $this->pdo->commit();
         } catch (\Throwable $exception) {

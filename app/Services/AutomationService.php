@@ -35,10 +35,7 @@ final class AutomationService
         $count = max(1, min(60, $count));
         $pdo = Database::connection();
         $refreshed = $this->refreshAutomatedCopy();
-        $runId = (int) $pdo->query('SELECT id FROM automation_runs ORDER BY id DESC LIMIT 1')->fetchColumn();
-        if ($runId === 0) {
-            return ['ok' => false, 'message' => 'Run the daily automation once before seeding demo ads.', 'created' => 0, 'refreshed' => $refreshed];
-        }
+        $runId = $this->ensureRunId($pdo);
 
         $this->spreadStates = true;
         $created = 0;
@@ -645,6 +642,20 @@ final class AutomationService
                     ) featured_ids
                )"
         );
+    }
+
+    private function ensureRunId(PDO $pdo): int
+    {
+        $id = (int) $pdo->query('SELECT id FROM automation_runs ORDER BY id DESC LIMIT 1')->fetchColumn();
+        if ($id > 0) {
+            return $id;
+        }
+        $pdo->prepare(
+            'INSERT INTO automation_runs (run_date, started_at, completed_at, requested_count, status, trigger_source)
+             VALUES (CURDATE(), NOW(), NOW(), 0, :status, :trigger_source)'
+        )->execute(['status' => 'completed', 'trigger_source' => 'manual']);
+
+        return (int) $pdo->lastInsertId();
     }
 
     private function log(int $runId, string $action, string $message, ?int $listingId, ?int $locationId, ?int $categoryId): void

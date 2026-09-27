@@ -23,6 +23,7 @@ final class HealthController
             $pdo = Database::connection();
             $states = (int) $pdo->query('SELECT COUNT(*) FROM states')->fetchColumn();
             $categories = (int) $pdo->query('SELECT COUNT(*) FROM categories')->fetchColumn();
+            $cities = (int) $pdo->query('SELECT COUNT(*) FROM cities')->fetchColumn();
         } catch (Throwable $exception) {
             Logger::error('Health check failed', $exception);
 
@@ -37,6 +38,7 @@ final class HealthController
             'database' => 'connected',
             'states' => $states,
             'categories' => $categories,
+            'cities' => $cities,
         ]);
     }
 }
