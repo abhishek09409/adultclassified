@@ -8,6 +8,7 @@ use App\Core\Database;
 use App\Core\Request;
 use App\Core\Response;
 use App\Helpers\Logger;
+use App\Services\DirectoryBootstrap;
 use Throwable;
 
 final class HealthController
@@ -18,6 +19,7 @@ final class HealthController
     public function index(Request $request, array $params = []): Response
     {
         unset($request, $params);
+        DirectoryBootstrap::ensure();
 
         try {
             $pdo = Database::connection();
@@ -39,6 +41,7 @@ final class HealthController
             'states' => $states,
             'categories' => $categories,
             'cities' => $cities,
+            'bootstrap' => DirectoryBootstrap::message(),
         ]);
     }
 }

@@ -41,8 +41,8 @@ final class CategorySeeder
     {
         $statement = $pdo->prepare(
             'INSERT INTO categories (name, slug, description, status)
-             VALUES (:name, :slug, :description, :status) AS new_row
-             ON DUPLICATE KEY UPDATE name = new_row.name, description = new_row.description, status = new_row.status'
+             VALUES (:name, :slug, :description, :status)
+             ON DUPLICATE KEY UPDATE name = VALUES(name), description = VALUES(description), status = VALUES(status)'
         );
 
         foreach (self::definitions() as $category) {

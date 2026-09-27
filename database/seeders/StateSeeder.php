@@ -50,8 +50,8 @@ final class StateSeeder
     {
         $statement = $pdo->prepare(
             'INSERT INTO states (name, slug, status)
-             VALUES (:name, :slug, :status) AS new_row
-             ON DUPLICATE KEY UPDATE name = new_row.name, status = new_row.status'
+             VALUES (:name, :slug, :status)
+             ON DUPLICATE KEY UPDATE name = VALUES(name), status = VALUES(status)'
         );
 
         foreach (self::definitions() as $state) {

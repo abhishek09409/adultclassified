@@ -13,16 +13,42 @@ use Throwable;
 
 final class DirectoryBootstrap
 {
+    private static string $message = 'ok';
+
+    public static function message(): string
+    {
+        return self::$message;
+    }
+
     public static function ensure(): void
     {
+        self::$message = 'ok';
         try {
             $pdo = Database::connection();
+        } catch (Throwable $exception) {
+            self::fail($exception);
+
+            return;
+        }
+
+        try {
             (new Migrator($pdo, BASE_PATH . '/database/migrations'))->migrate();
+        } catch (Throwable $exception) {
+            self::fail($exception);
+        }
+
+        try {
             self::seedPlaces($pdo);
             self::seedListings($pdo);
         } catch (Throwable $exception) {
-            Logger::error('Directory bootstrap failed', $exception);
+            self::fail($exception);
         }
+    }
+
+    private static function fail(Throwable $exception): void
+    {
+        self::$message = $exception->getMessage();
+        Logger::error('Directory bootstrap failed', $exception);
     }
 
     private static function seedPlaces(\PDO $pdo): void
