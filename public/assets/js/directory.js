@@ -69,4 +69,12 @@
             stateSelect.dispatchEvent(new Event('change'));
         }
     });
+
+    document.querySelectorAll('.heart-btn').forEach(function (button) {
+        button.addEventListener('click', function (event) {
+            event.preventDefault();
+            var pressed = button.getAttribute('aria-pressed') === 'true';
+            button.setAttribute('aria-pressed', pressed ? 'false' : 'true');
+        });
+    });
 })();

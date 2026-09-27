@@ -27,9 +27,9 @@ use App\Services\ListingPresenter;
                 <ul class="badge-row">
                     <?php foreach (ListingPresenter::badges($listing) as $badge): ?><li class="pill"><?= e($badge) ?></li><?php endforeach; ?>
                 </ul>
-                <h1><?= e((string) $listing['title']) ?></h1>
-                <p class="meta"><?= e((string) $listing['category_name']) ?> · <?= e((string) $listing['state_name']) ?> · <?= e((string) $listing['city_name']) ?> · <?= e((string) $listing['locality_name']) ?></p>
-                <p>Age <?= e(ListingPresenter::ageLabel($listing)) ?></p>
+                <h1 class="ad-title"><?= e((string) $listing['title']) ?></h1>
+                <p class="ad-meta"><?= e(ListingPresenter::ageLabel($listing)) ?> Years | <?= e((string) $listing['category_name']) ?> | <?= e((string) $listing['city_name']) ?></p>
+                <p class="meta"><?= e((string) $listing['locality_name']) ?>, <?= e((string) $listing['state_name']) ?></p>
                 <p>Status: <?= e((string) $listing['status']) ?></p>
                 <p>Posted <?= e(ListingPresenter::postedOn($listing)) ?></p>
                 <?php if (!empty($listing['availability_note'])): ?>

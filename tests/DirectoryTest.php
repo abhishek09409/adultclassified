@@ -41,7 +41,8 @@ $result = $search->search(['q' => "' OR 1=1 --"], true, 1, 12);
 check($result['total'] <= 5, 'injected search text does not dump the table');
 
 $csv = tempnam(sys_get_temp_dir(), 'loc');
-file_put_contents($csv, "state,city,locality\nKerala,Kochi,Marine Drive\nNot A State,Nowhere,Lane\n");
+$probe = 'Probe Lane ' . bin2hex(random_bytes(3));
+file_put_contents($csv, "state,city,locality\nKerala,Kochi,{$probe}\nNot A State,Nowhere,Lane\n");
 $summary = (new CsvImporter())->import((string) $csv);
 check($summary['imported'] === 1 && $summary['failed'] === 1, 'csv import creates a locality and rejects an unknown state');
 
