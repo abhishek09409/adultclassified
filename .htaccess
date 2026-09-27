@@ -1,0 +1,24 @@
+Options -Indexes -MultiViews
+ServerSignature Off
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Never expose environment files, VCS metadata, or application internals.
+    RewriteRule (^|/)\.(env|git|htaccess) - [F,L]
+    RewriteRule ^(app|config|database|storage|includes|cron|routes|resources|bin|tests)(/|$) - [F,L]
+
+    # Block script execution inside uploads even if a file is requested directly.
+    RewriteRule ^public/uploads/.*\.(php|phtml|php3|phar|cgi|pl)$ - [F,L]
+
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+<FilesMatch "^\.env">
+    Require all denied
+</FilesMatch>

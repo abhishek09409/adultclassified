@@ -1,0 +1,12 @@
+.env
+/vendor/
+/storage/logs/*
+!/storage/logs/.gitkeep
+/storage/cache/*
+!/storage/cache/.gitkeep
+/public/uploads/listings/*
+!/public/uploads/listings/.gitkeep
+*.log
+.DS_Store
+.idea/
+.vscode/
