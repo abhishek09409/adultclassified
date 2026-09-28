@@ -18,7 +18,7 @@ final class ApiController
         unset($params);
         $stateId = $request->integer('state_id');
         if ($stateId === null || $stateId < 1) {
-            return Response::json(['cities' => []], 422);
+            return Response::json(['success' => false, 'data' => [], 'cities' => []], 422);
         }
         $cities = array_map(static fn (array $row): array => [
             'id' => (int) $row['id'],
@@ -26,7 +26,7 @@ final class ApiController
             'slug' => (string) $row['slug'],
         ], (new LocationRepository())->citiesByState($stateId, true));
 
-        return Response::json(['cities' => $cities]);
+        return Response::json(['success' => true, 'data' => $cities, 'cities' => $cities]);
     }
 
     /**
@@ -37,7 +37,7 @@ final class ApiController
         unset($params);
         $cityId = $request->integer('city_id');
         if ($cityId === null || $cityId < 1) {
-            return Response::json(['locations' => []], 422);
+            return Response::json(['success' => false, 'data' => [], 'locations' => []], 422);
         }
         $locations = array_map(static fn (array $row): array => [
             'id' => (int) $row['id'],
@@ -45,6 +45,42 @@ final class ApiController
             'slug' => (string) $row['slug'],
         ], (new LocationRepository())->localitiesByCity($cityId, true));
 
-        return Response::json(['locations' => $locations]);
+        return Response::json(['success' => true, 'data' => $locations, 'locations' => $locations]);
+    }
+
+    /**
+     * @param array<string, string> $params
+     */
+    public function states(Request $request, array $params = []): Response
+    {
+        unset($request, $params);
+        $states = array_map(static fn (array $row): array => [
+            'id' => (int) $row['id'],
+            'name' => (string) $row['name'],
+            'slug' => (string) $row['slug'],
+        ], array_values(array_filter(
+            (new LocationRepository())->states(),
+            static fn (array $row): bool => ($row['status'] ?? '') === 'active'
+        )));
+
+        return Response::json(['success' => true, 'data' => $states, 'states' => $states]);
+    }
+
+    /**
+     * @param array<string, string> $params
+     */
+    public function categories(Request $request, array $params = []): Response
+    {
+        unset($request, $params);
+        $categories = array_map(static fn (array $row): array => [
+            'id' => (int) $row['id'],
+            'name' => (string) $row['name'],
+            'slug' => (string) $row['slug'],
+        ], array_values(array_filter(
+            (new LocationRepository())->categories(),
+            static fn (array $row): bool => ($row['status'] ?? '') === 'active'
+        )));
+
+        return Response::json(['success' => true, 'data' => $categories, 'categories' => $categories]);
     }
 }

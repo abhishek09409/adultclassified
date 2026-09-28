@@ -6,21 +6,30 @@
         return node;
     }
 
-    function reset(select, label) {
+    function placeholder(select, fallback) {
+        return select.getAttribute('data-placeholder') || fallback;
+    }
+
+    function reset(select, label, enabled) {
         select.replaceChildren(option('', label));
+        select.disabled = !enabled;
+        select.value = '';
     }
 
     async function fill(url, select, label, key) {
-        reset(select, label);
         if (!url) {
+            reset(select, label, false);
             return;
         }
+        reset(select, 'Loading...', false);
         var response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        reset(select, label, true);
         if (!response.ok) {
             return;
         }
         var payload = await response.json();
-        (payload[key] || []).forEach(function (row) {
+        var rows = payload.data || payload[key] || [];
+        rows.forEach(function (row) {
             select.appendChild(option(String(row.id), row.name));
         });
     }
@@ -34,10 +43,10 @@
                 return;
             }
             if (locality) {
-                reset(locality, 'Any locality');
+                reset(locality, placeholder(locality, 'Any locality'), false);
             }
             var id = stateSelect.value;
-            await fill(id && /^\d+$/.test(id) ? '/api/cities?state_id=' + encodeURIComponent(id) : '', city, 'Any city', 'cities');
+            await fill(id && /^\d+$/.test(id) ? '/api/cities?state_id=' + encodeURIComponent(id) : '', city, placeholder(city, 'Any city'), 'cities');
             var selected = city.getAttribute('data-selected');
             if (selected) {
                 city.value = selected;
@@ -54,7 +63,7 @@
                 return;
             }
             var id = citySelect.value;
-            fill(id && /^\d+$/.test(id) ? '/api/locations?city_id=' + encodeURIComponent(id) : '', locality, 'Any locality', 'locations').then(function () {
+            fill(id && /^\d+$/.test(id) ? '/api/locations?city_id=' + encodeURIComponent(id) : '', locality, placeholder(locality, 'Any locality'), 'locations').then(function () {
                 var selected = locality.getAttribute('data-selected');
                 if (selected) {
                     locality.value = selected;

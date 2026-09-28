@@ -33,6 +33,7 @@ declare(strict_types=1);
             <a href="/admin/automation">Automation</a>
             <a href="/admin/seo">SEO</a>
             <a href="/admin/settings">Settings</a>
+            <a href="/admin/system/setup">Database setup</a>
             <a href="/admin/admins">Admins</a>
             <a href="/admin/audit">Audit logs</a>
             <a href="/admin/compliance">Compliance</a>

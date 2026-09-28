@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
-use App\Core\Database;
 use App\Core\Request;
 use App\Core\Response;
 use App\Helpers\Logger;
-use App\Services\DirectoryBootstrap;
+use App\Services\DatabaseInitializer;
 use Throwable;
 
 final class HealthController
@@ -19,29 +18,32 @@ final class HealthController
     public function index(Request $request, array $params = []): Response
     {
         unset($request, $params);
-        DirectoryBootstrap::ensure();
+        DatabaseInitializer::ensureIfNeeded();
 
         try {
-            $pdo = Database::connection();
-            $states = (int) $pdo->query('SELECT COUNT(*) FROM states')->fetchColumn();
-            $categories = (int) $pdo->query('SELECT COUNT(*) FROM categories')->fetchColumn();
-            $cities = (int) $pdo->query('SELECT COUNT(*) FROM cities')->fetchColumn();
+            $report = (new DatabaseInitializer())->report();
         } catch (Throwable $exception) {
             Logger::error('Health check failed', $exception);
 
             return Response::json([
                 'status' => 'error',
                 'database' => 'unavailable',
+                'bootstrap' => $exception->getMessage(),
             ], 503);
         }
 
         return Response::json([
-            'status' => 'ok',
+            'status' => $report['ok'] ? 'ok' : 'incomplete',
             'database' => 'connected',
-            'states' => $states,
-            'categories' => $categories,
-            'cities' => $cities,
-            'bootstrap' => DirectoryBootstrap::message(),
+            'tables' => [
+                'states' => $report['counts']['states'] ?? 0,
+                'categories' => $report['counts']['categories'] ?? 0,
+                'cities' => $report['counts']['cities'] ?? 0,
+                'locations' => $report['counts']['locations'] ?? 0,
+                'listings' => $report['counts']['listings'] ?? 0,
+            ],
+            'bootstrap' => DatabaseInitializer::message(),
+            'orphans' => $report['orphans'],
         ]);
     }
 }

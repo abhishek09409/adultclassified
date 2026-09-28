@@ -11,6 +11,7 @@ use App\Controllers\Admin\ImportController;
 use App\Controllers\Admin\ListingController as AdminListingController;
 use App\Controllers\Admin\ReportAdminController;
 use App\Controllers\Admin\SettingsController;
+use App\Controllers\Admin\SetupController;
 use App\Controllers\Admin\TaxonomyController;
 use App\Controllers\AgeController;
 use App\Controllers\ApiController;
@@ -38,6 +39,8 @@ return static function (Router $router): void {
     $router->post('/report', [ReportController::class, 'store']);
     $router->get('/remove-listing', [ReportController::class, 'removal']);
     $router->post('/remove-listing', [ReportController::class, 'store']);
+    $router->get('/api/states', [ApiController::class, 'states']);
+    $router->get('/api/categories', [ApiController::class, 'categories']);
     $router->get('/api/cities', [ApiController::class, 'cities']);
     $router->get('/api/locations', [ApiController::class, 'localities']);
     $router->get('/sitemap.xml', [SitemapController::class, 'index']);
@@ -74,6 +77,8 @@ return static function (Router $router): void {
     $router->post('/admin/automation/run', [AutomationController::class, 'run']);
     $router->get('/admin/seo', [SettingsController::class, 'seo']);
     $router->get('/admin/settings', [SettingsController::class, 'settings']);
+    $router->get('/admin/system/setup', [SetupController::class, 'index']);
+    $router->post('/admin/system/setup', [SetupController::class, 'index']);
     $router->get('/admin/admins', [SettingsController::class, 'admins']);
     $router->post('/admin/admins', [SettingsController::class, 'admins']);
     $router->get('/admin/audit', [AuditController::class, 'index']);

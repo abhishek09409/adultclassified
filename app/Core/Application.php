@@ -8,7 +8,6 @@ use App\Controllers\AgeController;
 use App\Core\Session;
 use App\Helpers\Logger;
 use App\Services\AgeGate;
-use App\Services\DirectoryBootstrap;
 use Throwable;
 
 final class Application
@@ -25,7 +24,6 @@ final class Application
         }
 
         Session::start();
-        DirectoryBootstrap::ensure();
         $request = Request::fromGlobals();
         if (preg_match('#(?:^|/)\.#', $request->path()) === 1 || preg_match('#^/(?:app|config|database|storage|includes|cron|routes|resources|bin|tests)(?:/|$)#', $request->path()) === 1) {
             (new \App\Controllers\ErrorController())->forbidden()->send();
