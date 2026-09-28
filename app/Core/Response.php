@@ -39,6 +39,24 @@ final class Response
         return new self($status, $encoded, ['Content-Type' => 'application/json; charset=UTF-8'] + $headers);
     }
 
+    public static function redirect(string $path, int $status = 302): self
+    {
+        if (!self::isSafePath($path)) {
+            $path = '/';
+        }
+
+        return new self($status, '', ['Location' => $path]);
+    }
+
+    public static function isSafePath(string $path): bool
+    {
+        if ($path === '' || !str_starts_with($path, '/') || str_starts_with($path, '//') || str_contains($path, '\\')) {
+            return false;
+        }
+
+        return !preg_match('/[\r\n]/', $path);
+    }
+
     public function status(): int
     {
         return $this->status;

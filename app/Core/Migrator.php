@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Core;
 
 use PDO;
+use PDOException;
 use RuntimeException;
 
 final class Migrator
@@ -33,7 +34,14 @@ final class Migrator
             }
 
             foreach ($this->statements($sql) as $statement) {
-                $this->pdo->exec($statement);
+                try {
+                    $this->pdo->exec($statement);
+                } catch (PDOException $exception) {
+                    $code = (int) ($exception->errorInfo[1] ?? 0);
+                    if (!in_array($code, [1050, 1060, 1061, 1068, 1826], true)) {
+                        throw $exception;
+                    }
+                }
             }
 
             $statement = $this->pdo->prepare('INSERT INTO schema_migrations (migration) VALUES (:migration)');

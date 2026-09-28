@@ -11,6 +11,14 @@ final class View
     /**
      * @param array<string, mixed> $data
      */
+    public static function partial(string $template, array $data = []): void
+    {
+        echo self::render($template, $data, null);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
     public static function render(string $template, array $data = [], ?string $layout = 'layouts/base'): string
     {
         $content = self::capture($template, $data);

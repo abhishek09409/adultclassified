@@ -120,7 +120,7 @@ check($delhi->fetch() !== false, 'delhi state can be selected by slug');
 $stateId = (int) $pdo->query("SELECT id FROM states WHERE slug = 'delhi'")->fetchColumn();
 $categoryId = (int) $pdo->query("SELECT id FROM categories WHERE slug = 'escorts'")->fetchColumn();
 $pdo->prepare('INSERT INTO cities (state_id, name, slug, status) VALUES (:state_id, :name, :slug, :status)')
-    ->execute(['state_id' => $stateId, 'name' => 'New Delhi', 'slug' => 'new-delhi', 'status' => 'active']);
+    ->execute(['state_id' => $stateId, 'name' => 'Phase One Probe', 'slug' => 'phase-one-probe', 'status' => 'active']);
 $cityId = (int) $pdo->lastInsertId();
 $pdo->prepare('INSERT INTO locations (city_id, name, slug, status) VALUES (:city_id, :name, :slug, :status)')
     ->execute(['city_id' => $cityId, 'name' => 'Connaught Place', 'slug' => 'connaught-place', 'status' => 'active']);

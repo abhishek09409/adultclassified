@@ -6,6 +6,8 @@
 !/storage/cache/.gitkeep
 /public/uploads/listings/*
 !/public/uploads/listings/.gitkeep
+/public/uploads/media/*
+!/public/uploads/media/.gitkeep
 *.log
 .DS_Store
 .idea/

@@ -58,7 +58,7 @@ final class ErrorHandler
             return View::render('errors/500', [
                 'title' => 'Something went wrong',
                 'detail' => $detail,
-            ]);
+            ], 'layouts/simple');
         } catch (Throwable) {
             if ($debug && $detail !== null) {
                 return '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Error</title></head><body><h1>Something went wrong</h1><p>'

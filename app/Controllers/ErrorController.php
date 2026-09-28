@@ -19,7 +19,7 @@ final class ErrorController
 
         return Response::html(View::render('errors/404', [
             'title' => 'Page not found',
-        ]), 404);
+        ], 'layouts/simple'), 404);
     }
 
     /**
@@ -31,7 +31,7 @@ final class ErrorController
 
         return Response::html(View::render('errors/403', [
             'title' => 'Forbidden',
-        ]), 403);
+        ], 'layouts/simple'), 403);
     }
 
     public function serverError(): Response
@@ -39,6 +39,6 @@ final class ErrorController
         return Response::html(View::render('errors/500', [
             'title' => 'Something went wrong',
             'detail' => null,
-        ]), 500);
+        ], 'layouts/simple'), 500);
     }
 }
